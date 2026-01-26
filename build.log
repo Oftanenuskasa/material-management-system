@@ -1,0 +1,12 @@
+   ▲ Next.js 14.1.4 (turbo)
+   - Environments: .env
+
+   Creating an optimized production build ...
+
+> Build error occurred
+Error: next build doesn't support turbopack yet
+    at turbopackBuild (/home/oftaan/Desktop/Materials/material-management/node_modules/next/dist/build/index.js:757:23)
+    at /home/oftaan/Desktop/Materials/material-management/node_modules/next/dist/build/index.js:826:96
+    at async Span.traceAsyncFn (/home/oftaan/Desktop/Materials/material-management/node_modules/next/dist/trace/trace.js:151:20)
+    at async build (/home/oftaan/Desktop/Materials/material-management/node_modules/next/dist/build/index.js:373:9)
+    at async main (/home/oftaan/Desktop/Materials/material-management/node_modules/next/dist/bin/next:155:5)
