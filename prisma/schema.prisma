@@ -7,18 +7,82 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Material {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String?
-  quantity    Int      @default(0)
-  unit        String
-  unitPrice   Float    @default(0)
-  category    String
-  supplier    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model User {
+  id               String            @id @default(cuid())
+  email            String            @unique
+  name             String
+  password         String
+  role             String            @default("USER")
+  department       String?
+  phone            String?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  
+  // Relations
+  createdMaterials Material[]        @relation("MaterialCreatedBy")
+  updatedMaterials Material[]        @relation("MaterialUpdatedBy")
+  materialRequests MaterialRequest[]
 
+  @@index([email])
+  @@index([role])
+  @@index([department])
+  @@index([createdAt])
+}
+
+model Material {
+  id            String            @id @default(cuid())
+  sku           String            @unique
+  name          String
+  description   String?
+  category      String
+  quantity      Int               @default(0)
+  unit          String            @default("pieces")
+  unitPrice     Decimal           @default(0)
+  supplier      String?
+  location      String?
+  minStockLevel Int               @default(10)
+  status        String            @default("ACTIVE")
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  
+  // Relations
+  createdById   String?
+  updatedById   String?
+  createdBy     User?             @relation("MaterialCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User?             @relation("MaterialUpdatedBy", fields: [updatedById], references: [id])
+  requests      MaterialRequest[]
+
+  @@index([sku])
+  @@index([name])
   @@index([category])
   @@index([supplier])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model MaterialRequest {
+  id          String   @id @default(cuid())
+  materialId  String
+  userId      String
+  quantity    Int
+  status      String   @default("PENDING")
+  purpose     String?
+  notes       String?
+  priority    String   @default("MEDIUM")
+  neededBy    DateTime?
+  requestedAt DateTime @default(now())
+  approvedAt  DateTime?
+  fulfilledAt DateTime?
+  
+  // Relations
+  material    Material @relation(fields: [materialId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([materialId])
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([requestedAt])
 }

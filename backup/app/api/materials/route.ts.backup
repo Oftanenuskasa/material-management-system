@@ -1,0 +1,66 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+export async function GET() {
+  try {
+    const materials = await prisma.material.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    
+    return NextResponse.json(materials);
+    
+  } catch (error: any) {
+    console.error('GET Error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch materials', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const data = await request.json();
+    
+    // Basic validation
+    if (!data.sku || !data.name) {
+      return NextResponse.json(
+        { error: 'SKU and Name are required' },
+        { status: 400 }
+      );
+    }
+    
+    const material = await prisma.material.create({
+      data: {
+        sku: data.sku,
+        name: data.name,
+        description: data.description || null,
+        quantity: parseInt(data.quantity) || 0,
+        unit: data.unit || 'pieces',
+        unitPrice: parseFloat(data.unitPrice) || 0,
+        category: data.category || null,
+        supplier: data.supplier || null,
+        location: data.location || null,
+        minStockLevel: parseInt(data.minStockLevel) || 10,
+      },
+    });
+    
+    return NextResponse.json(material, { status: 201 });
+    
+  } catch (error: any) {
+    console.error('POST Error:', error);
+    
+    // Handle duplicate SKU error
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'SKU already exists' },
+        { status: 400 }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: 'Failed to create material', details: error.message },
+      { status: 500 }
+    );
+  }
+}

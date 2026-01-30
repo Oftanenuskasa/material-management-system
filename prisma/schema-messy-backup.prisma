@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String     @id @default(cuid())
+  email            String     @unique
+  name             String
+  password         String
+  role             String     @default("USER")
+  department       String?
+  phone            String?
+  isActive         Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  
+  // Relations
+  createdMaterials Material[] @relation("MaterialCreatedBy")
+  updatedMaterials Material[] @relation("MaterialUpdatedBy")
+  materialRequests MaterialRequest[]
+
+  @@index([email])
+  @@index([role])
+  @@index([department])
+  @@index([createdAt])
+}
+
+model Material {
+  id            String   @id @default(cuid())
+  sku           String   @unique
+  name          String
+  description   String?
+  category      String
+  quantity      Int      @default(0)
+  unit          String   @default("pieces")
+  unitPrice     Decimal  @default(0)
+  supplier      String?
+  location      String?
+  minStockLevel Int      @default(10)
+  status        String   @default("ACTIVE") // ACTIVE, OUT_OF_STOCK, DISCONTINUED
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  createdById   String?
+  updatedById   String?
+  createdBy     User?    @relation("MaterialCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User?    @relation("MaterialUpdatedBy", fields: [updatedById], references: [id])
+  requests      MaterialRequest[]
+
+  @@index([sku])
+  @@index([name])
+  @@index([category])
+  @@index([supplier])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model MaterialRequest {
+  id          String   @id @default(cuid())
+  materialId  String
+  userId      String
+  quantity    Int
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED, FULFILLED
+  purpose     String?
+  notes       String?
+  requestedAt DateTime @default(now())
+  approvedAt  DateTime?
+  fulfilledAt DateTime?
+
+  // Relations
+  material    Material @relation(fields: [materialId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([materialId])
+  @@index([userId])
+  @@index([status])
+  @@index([requestedAt])
+}
+
+// Update the existing MaterialRequest model to include more fields
+model MaterialRequest {
+  id          String   @id @default(cuid())
+  materialId  String
+  userId      String
+  quantity    Int
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED, FULFILLED
+  purpose     String?
+  notes       String?
+  priority    String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  neededBy    DateTime?
+  requestedAt DateTime @default(now())
+  approvedAt  DateTime?
+  fulfilledAt DateTime?
+  approvedById String?
+  approvedBy  User?    @relation("ApprovedRequests", fields: [approvedById], references: [id])
+
+  // Relations
+  material    Material @relation(fields: [materialId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([materialId])
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([requestedAt])
+}
+
+// Add enum for better type safety (optional but recommended)
+enum RequestPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FULFILLED
+}
+
+enum MaterialStatus {
+  ACTIVE
+  OUT_OF_STOCK
+  DISCONTINUED
+  LOW_STOCK
+}
+
+// Update Material model status to use enum
+model Material {
+  id            String        @id @default(cuid())
+  sku           String        @unique
+  name          String
+  description   String?
+  category      String
+  quantity      Int           @default(0)
+  unit          String        @default("pieces")
+  unitPrice     Decimal       @default(0)
+  supplier      String?
+  location      String?
+  minStockLevel Int           @default(10)
+  status        MaterialStatus @default(ACTIVE)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Relations
+  createdById   String?
+  updatedById   String?
+  createdBy     User?         @relation("MaterialCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User?         @relation("MaterialUpdatedBy", fields: [updatedById], references: [id])
+  requests      MaterialRequest[]
+
+  @@index([sku])
+  @@index([name])
+  @@index([category])
+  @@index([supplier])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Update MaterialRequest model to use enums
+model MaterialRequest {
+  id          String         @id @default(cuid())
+  materialId  String
+  userId      String
+  quantity    Int
+  status      RequestStatus  @default(PENDING)
+  purpose     String?
+  notes       String?
+  priority    RequestPriority @default(MEDIUM)
+  neededBy    DateTime?
+  requestedAt DateTime       @default(now())
+  approvedAt  DateTime?
+  fulfilledAt DateTime?
+  approvedById String?
+  approvedBy  User?          @relation("ApprovedRequests", fields: [approvedById], references: [id])
+
+  // Relations
+  material    Material       @relation(fields: [materialId], references: [id])
+  user        User           @relation(fields: [userId], references: [id])
+
+  @@index([materialId])
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([requestedAt])
+}
+
+// Add inventory stats view for reporting
+model InventoryStats {
+  id          String   @id @default(cuid())
+  totalItems  Int      @default(0)
+  totalValue  Decimal  @default(0)
+  lowStock    Int      @default(0)
+  outOfStock  Int      @default(0)
+  lastUpdated DateTime @default(now())
+}
+
+// Add report model for storing generated reports
+model Report {
+  id          String   @id @default(cuid())
+  type        String   // INVENTORY, REQUESTS, USAGE, FINANCIAL
+  title       String
+  description String?
+  data        Json     // Store report data as JSON
+  format      String   @default("JSON") // JSON, PDF, EXCEL, CSV
+  generatedBy String
+  generatedAt DateTime @default(now())
+  parameters  Json?    // Store filter parameters used
+
+  // Relation
+  user        User     @relation(fields: [generatedBy], references: [id])
+
+  @@index([type])
+  @@index([generatedAt])
+  @@index([generatedBy])
+}

@@ -1,40 +1,65 @@
-import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-import { materialSchema } from '@/schemas/material'
+import { NextResponse } from 'next/server';
 
-const prisma = new PrismaClient()
-
-export async function GET() {
+export async function GET(request) {
   try {
-    const materials = await prisma.material.findMany({
-      orderBy: { createdAt: 'desc' },
-    })
+    console.log('Materials API called');
     
-    // Return as array for compatibility
-    return NextResponse.json(materials)
+    // First, return test data to ensure the API works
+    const testMaterials = [
+      {
+        id: 'test-1',
+        sku: 'TEST-001',
+        name: 'Test Hammer',
+        description: 'A test hammer',
+        category: 'Tools',
+        quantity: 25,
+        unit: 'pieces',
+        unitPrice: 15.99,
+        supplier: 'Test Supplier',
+        location: 'Warehouse A',
+        minStockLevel: 5,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'test-2',
+        name: 'Test Screwdriver',
+        sku: 'TEST-002',
+        description: 'A test screwdriver',
+        category: 'Tools',
+        quantity: 50,
+        unit: 'pieces',
+        unitPrice: 8.99,
+        supplier: 'Test Supplier',
+        location: 'Warehouse B',
+        minStockLevel: 10,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+    
+    // Check query parameters
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+    
+    let materials = testMaterials;
+    
+    if (status) {
+      materials = materials.filter(m => m.status === status);
+    }
+    
+    return NextResponse.json(materials);
+    
   } catch (error) {
+    console.error('Error in materials API:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch materials' },
+      { 
+        error: 'Failed to fetch materials', 
+        details: error.message
+      },
       { status: 500 }
-    )
-  }
-}
-
-export async function POST(request) {
-  try {
-    const body = await request.json()
-    const validatedData = materialSchema.parse(body)
-
-    const material = await prisma.material.create({
-      data: validatedData,
-    })
-
-    return NextResponse.json(material, { status: 201 })
-  } catch (error) {
-    console.error('Error creating material:', error)
-    return NextResponse.json(
-      { error: 'Failed to create material' },
-      { status: 500 }
-    )
+    );
   }
 }

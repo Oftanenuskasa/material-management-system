@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Material {
+  id            String   @id @default(cuid())
+  sku           String   @unique
+  name          String
+  description   String?
+  quantity      Int      @default(0)
+  unit          String   @default("pieces")
+  unitPrice     Float    @default(0)
+  category      String?
+  supplier      String?
+  location      String?
+  minStockLevel Int      @default(10)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
