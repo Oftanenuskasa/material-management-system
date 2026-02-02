@@ -1,77 +1,67 @@
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 
 const prisma = new PrismaClient()
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecret-change-this'
 
 export async function POST(request) {
   try {
-    const { email, password } = await request.json()
-
-    // Validate input
+    const body = await request.json()
+    const { email, password } = body
+    
     if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email and password are required' },
-        { status: 400 }
-      )
+      return NextResponse.json({
+        success: false,
+        message: 'Email and password are required'
+      }, { status: 400 })
     }
-
-    // Find user
+    
+    // Find user by email
     const user = await prisma.user.findUnique({
       where: { email }
     })
-
+    
     if (!user) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      )
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid credentials'
+      }, { status: 401 })
     }
-
-    // Check if user is active
-    if (!user.isActive) {
-      return NextResponse.json(
-        { error: 'Account is deactivated' },
-        { status: 401 }
-      )
-    }
-
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password)
+    
+    // Check password
+    // Note: In production, use proper password hashing
+    const isValidPassword = await bcrypt.compare(password, user.password || '')
+    
     if (!isValidPassword) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      )
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid credentials'
+      }, { status: 401 })
     }
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email, 
-        role: user.role,
-        name: user.name
-      },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    )
-
-    // Return user data (excluding password) and token
-    const { password: _, ...userWithoutPassword } = user
+    
+    // Create a simple token (in production, use JWT)
+    const token = Buffer.from(`${user.id}:${user.email}`).toString('base64')
+    
     return NextResponse.json({
       success: true,
-      user: userWithoutPassword,
-      token
+      message: 'Login successful',
+      data: {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        }
+      }
     })
-
   } catch (error) {
     console.error('Login error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      success: false,
+      message: 'Login failed'
+    }, { status: 500 })
+  } finally {
+    await prisma.$disconnect()
   }
 }

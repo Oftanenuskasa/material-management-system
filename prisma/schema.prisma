@@ -8,81 +8,79 @@ datasource db {
 }
 
 model User {
-  id               String            @id @default(cuid())
-  email            String            @unique
-  name             String
-  password         String
-  role             String            @default("USER")
-  department       String?
-  phone            String?
-  isActive         Boolean           @default(true)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id        String      @id @default(cuid())
+  email     String      @unique
+  name      String?
+  role      UserRole    @default(WORKER)
+  password  String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
   
-  // Relations
-  createdMaterials Material[]        @relation("MaterialCreatedBy")
-  updatedMaterials Material[]        @relation("MaterialUpdatedBy")
-  materialRequests MaterialRequest[]
-
+  // Relationships
+  materialsCreated Material[] @relation("CreatedMaterials")
+  materialsUpdated Material[] @relation("UpdatedMaterials")
+  requests          Request[]
+  
+  @@map("User")
   @@index([email])
   @@index([role])
-  @@index([department])
-  @@index([createdAt])
 }
 
 model Material {
-  id            String            @id @default(cuid())
-  sku           String            @unique
+  id            String    @id @default(cuid())
+  sku           String    @unique
   name          String
   description   String?
-  category      String
-  quantity      Int               @default(0)
-  unit          String            @default("pieces")
-  unitPrice     Decimal           @default(0)
+  quantity      Int       @default(0)
+  unit          String    @default("pieces")
+  unitPrice     Float     @default(0)
+  category      String?
   supplier      String?
   location      String?
-  minStockLevel Int               @default(10)
-  status        String            @default("ACTIVE")
-  notes         String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  minStockLevel Int       @default(10)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   
-  // Relations
+  // Relationships
   createdById   String?
   updatedById   String?
-  createdBy     User?             @relation("MaterialCreatedBy", fields: [createdById], references: [id])
-  updatedBy     User?             @relation("MaterialUpdatedBy", fields: [updatedById], references: [id])
-  requests      MaterialRequest[]
-
+  createdBy     User?     @relation("CreatedMaterials", fields: [createdById], references: [id])
+  updatedBy     User?     @relation("UpdatedMaterials", fields: [updatedById], references: [id])
+  requests      Request[]
+  
+  @@map("Material")
   @@index([sku])
   @@index([name])
   @@index([category])
   @@index([supplier])
+  @@index([createdAt])
+}
+
+model Request {
+  id            String    @id @default(cuid())
+  materialId    String
+  material      Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quantity      Int
+  purpose       String?
+  urgency       String?   @default("MEDIUM")
+  status        String    @default("PENDING")
+  approvedBy    String?
+  approvedAt    DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("Request")
+  @@index([materialId])
+  @@index([userId])
   @@index([status])
   @@index([createdAt])
 }
 
-model MaterialRequest {
-  id          String   @id @default(cuid())
-  materialId  String
-  userId      String
-  quantity    Int
-  status      String   @default("PENDING")
-  purpose     String?
-  notes       String?
-  priority    String   @default("MEDIUM")
-  neededBy    DateTime?
-  requestedAt DateTime @default(now())
-  approvedAt  DateTime?
-  fulfilledAt DateTime?
-  
-  // Relations
-  material    Material @relation(fields: [materialId], references: [id])
-  user        User     @relation(fields: [userId], references: [id])
-
-  @@index([materialId])
-  @@index([userId])
-  @@index([status])
-  @@index([priority])
-  @@index([requestedAt])
+enum UserRole {
+  ADMIN
+  MANAGER
+  WORKER
 }

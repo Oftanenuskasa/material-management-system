@@ -1,0 +1,753 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { getSession } from 'next-auth/react'
+
+export default function AdminMaterialsPage() {
+  const [session, setSession] = useState(null)
+  const [materials, setMaterials] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [selectedMaterial, setSelectedMaterial] = useState(null)
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, pages: 1 })
+  const [filters, setFilters] = useState({
+    search: '',
+    category: '',
+    status: ''
+  })
+  const [categories, setCategories] = useState([])
+  const router = useRouter()
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        const sessionData = await getSession()
+        if (!sessionData) {
+          router.push('/auth/login')
+          return
+        }
+        
+        if (sessionData.user.role !== 'ADMIN') {
+          router.push('/dashboard')
+          return
+        }
+        
+        setSession(sessionData)
+        fetchMaterials(1, filters)
+      } catch (error) {
+        console.error('Failed to fetch session:', error)
+        router.push('/auth/login')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSession()
+  }, [router])
+
+  // Fetch materials from ADMIN endpoint
+  const fetchMaterials = async (page = 1, filters = {}) => {
+    try {
+      setLoading(true)
+      
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: '20',
+        ...filters
+      }).toString()
+
+      console.log('📡 Fetching from /api/admin/materials...')
+      
+      const response = await fetch(`/api/admin/materials?${queryParams}`)
+      console.log('Response status:', response.status)
+      
+      const result = await response.json()
+      console.log('📦 Fetch result:', result)
+
+      if (result.success) {
+        console.log(`✅ Found ${result.data?.length || 0} materials`)
+        
+        setMaterials(result.data || [])
+        setPagination(result.pagination || { page: 1, limit: 20, total: 0, pages: 1 })
+        setCategories(result.categories || [])
+      } else {
+        console.error('❌ Failed to fetch:', result.error)
+      }
+    } catch (error) {
+      console.error('❌ Error fetching materials:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (session?.user?.role === 'ADMIN') {
+      fetchMaterials(pagination.page, filters)
+    }
+  }, [pagination.page, filters, session])
+
+  // Handle create using ADMIN endpoint
+  const handleCreate = async (materialData) => {
+    try {
+      console.log('🚀 Creating material:', materialData)
+      
+      const response = await fetch('/api/admin/materials', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(materialData)
+      })
+
+      const result = await response.json()
+      console.log('📨 Create response:', result)
+
+      if (result.success) {
+        setShowCreateModal(false)
+        
+        // Add the new material to the beginning of the list
+        if (result.data) {
+          setMaterials(prev => [result.data, ...prev])
+          setPagination(prev => ({ ...prev, total: prev.total + 1 }))
+        }
+        
+        // Also refetch to ensure data consistency
+        fetchMaterials(1, filters)
+        
+        alert('✅ Material created successfully!')
+      } else {
+        alert(`❌ ${result.error || 'Failed to create material'}`)
+      }
+    } catch (error) {
+      console.error('❌ Error creating material:', error)
+      alert('❌ Failed to create material')
+    }
+  }
+
+  // Handle update using ADMIN endpoint
+  const handleUpdate = async (id, materialData) => {
+    try {
+      console.log('✏️ Updating material:', id, materialData)
+      
+      const response = await fetch(`/api/admin/materials/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(materialData)
+      })
+
+      const result = await response.json()
+      console.log('📨 Update response:', result)
+
+      if (result.success) {
+        setShowEditModal(false)
+        setSelectedMaterial(null)
+        
+        // Update the material in the list
+        setMaterials(prev => 
+          prev.map(m => m.id === id ? result.data : m)
+        )
+        
+        alert('✅ Material updated successfully!')
+      } else {
+        alert(`❌ ${result.error || 'Failed to update material'}`)
+      }
+    } catch (error) {
+      console.error('❌ Error updating material:', error)
+      alert('❌ Failed to update material')
+    }
+  }
+
+  // Handle delete using ADMIN endpoint
+  const handleDelete = async (id) => {
+    console.log('🗑️ Attempting to delete material ID:', id)
+    
+    if (!confirm('Are you sure you want to delete this material?')) {
+      return
+    }
+
+    try {
+      console.log('🗑️ Deleting material:', id)
+      
+      const response = await fetch(`/api/admin/materials/${id}`, {
+        method: 'DELETE',
+      })
+
+      console.log('Delete response status:', response.status)
+      
+      const result = await response.json()
+      console.log('📨 Delete response:', result)
+
+      if (result.success) {
+        // Remove from list
+        setMaterials(prev => prev.filter(m => m.id !== id))
+        setPagination(prev => ({ ...prev, total: prev.total - 1 }))
+        
+        alert('✅ Material deleted successfully!')
+      } else {
+        alert(`❌ ${result.error || 'Failed to delete material'}`)
+      }
+    } catch (error) {
+      console.error('❌ Error deleting material:', error)
+      alert('❌ Failed to delete material')
+    }
+  }
+
+  // Handle edit click
+  const handleEditClick = (material) => {
+    console.log('✏️ Editing material:', material)
+    setSelectedMaterial(material)
+    setShowEditModal(true)
+  }
+
+  // Handle filter change
+  const handleFilterChange = (newFilters) => {
+    console.log('🔍 Filter changed:', newFilters)
+    setFilters(newFilters)
+    setPagination(prev => ({ ...prev, page: 1 })) // Reset to page 1
+  }
+
+  // Handle page change
+  const handlePageChange = (newPage) => {
+    console.log('📄 Page changed to:', newPage)
+    setPagination(prev => ({ ...prev, page: newPage }))
+  }
+
+  // Helper function to format price safely
+  const formatPrice = (price) => {
+    if (price === null || price === undefined) return '0.00'
+    const num = typeof price === 'string' ? parseFloat(price) : price
+    return isNaN(num) ? '0.00' : num.toFixed(2)
+  }
+
+  // Helper function to get unit safely
+  const getUnit = (unit) => {
+    return unit || 'pieces'
+  }
+
+  if (loading && materials.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading materials...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!session || session.user.role !== 'ADMIN') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
+          <p className="text-gray-600">Admin access required</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Materials Management</h1>
+            <p className="text-gray-600">Admin - Manage all materials in the system</p>
+          </div>
+          <div className="flex space-x-4">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
+            >
+              <span className="mr-2">+</span> Add New Material
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-blue-100 rounded-lg mr-4">
+                <span className="text-2xl">📦</span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Materials</p>
+                <p className="text-2xl font-bold">{pagination.total}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-green-100 rounded-lg mr-4">
+                <span className="text-2xl">✅</span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">In Stock</p>
+                <p className="text-2xl font-bold">
+                  {materials.filter(m => m.status === 'ACTIVE' && m.quantity > 0).length}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-yellow-100 rounded-lg mr-4">
+                <span className="text-2xl">⚠️</span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Low Stock</p>
+                <p className="text-2xl font-bold">
+                  {materials.filter(m => m.quantity > 0 && m.quantity <= 10).length}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-red-100 rounded-lg mr-4">
+                <span className="text-2xl">❌</span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Out of Stock</p>
+                <p className="text-2xl font-bold">
+                  {materials.filter(m => m.quantity === 0).length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Simple Materials Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="p-6 border-b">
+            <div className="flex justify-between items-center">
+              <div className="flex space-x-4">
+                <input
+                  type="text"
+                  placeholder="Search materials..."
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange({ ...filters, search: e.target.value })}
+                  className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <select
+                  value={filters.category}
+                  onChange={(e) => handleFilterChange({ ...filters, category: e.target.value })}
+                  className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Categories</option>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="text-sm text-gray-600">
+                Showing {materials.length} of {pagination.total} materials
+              </div>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-600">Loading materials...</p>
+            </div>
+          ) : materials.length === 0 ? (
+            <div className="p-8 text-center">
+              <p className="text-gray-500">No materials found.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {materials.map((material) => (
+                    <tr key={material.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {material.sku}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {material.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {material.category || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {material.quantity} {getUnit(material.unit)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ${formatPrice(material.unitPrice)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          material.status === 'ACTIVE' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {material.status || 'ACTIVE'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                        <button
+                          onClick={() => handleEditClick(material)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(material.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pagination.pages > 1 && (
+            <div className="px-6 py-4 border-t">
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-gray-700">
+                  Page {pagination.page} of {pagination.pages}
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={pagination.page === 1}
+                    className="px-3 py-1 border rounded disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={pagination.page === pagination.pages}
+                    className="px-3 py-1 border rounded disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Create Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h2 className="text-xl font-bold mb-4">Add New Material</h2>
+                <form onSubmit={(e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.target)
+                  
+                  // Get values and convert empty strings to undefined (not null)
+                  const getValue = (name) => {
+                    const value = formData.get(name)
+                    return value === '' ? undefined : value
+                  }
+                  
+                  const data = {
+                    sku: getValue('sku'),
+                    name: getValue('name'),
+                    description: getValue('description'),
+                    category: getValue('category'),
+                    quantity: getValue('quantity') ? parseInt(getValue('quantity')) : 0,
+                    unit: getValue('unit') || 'pieces',
+                    unitPrice: getValue('unitPrice') ? parseFloat(getValue('unitPrice')) : 0,
+                    supplier: getValue('supplier'),
+                    location: getValue('location'),
+                    minStockLevel: getValue('minStockLevel') ? parseInt(getValue('minStockLevel')) : 10,
+                    status: getValue('status') || 'ACTIVE'
+                  }
+                  
+                  console.log('Form data to submit:', data)
+                  handleCreate(data)
+                }}>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        SKU *
+                      </label>
+                      <input
+                        type="text"
+                        name="sku"
+                        required
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="MAT-001"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        required
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="Material Name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Description
+                      </label>
+                      <input
+                        type="text"
+                        name="description"
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="Optional description"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Quantity
+                      </label>
+                      <input
+                        type="number"
+                        name="quantity"
+                        defaultValue="0"
+                        min="0"
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Unit
+                      </label>
+                      <input
+                        type="text"
+                        name="unit"
+                        defaultValue="pieces"
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="pieces, liters, kg, etc."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Unit Price ($)
+                      </label>
+                      <input
+                        type="number"
+                        name="unitPrice"
+                        step="0.01"
+                        min="0"
+                        defaultValue="0"
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Category
+                      </label>
+                      <input
+                        type="text"
+                        name="category"
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="Optional category"
+                      />
+                    </div>
+                    <div className="flex space-x-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateModal(false)}
+                        className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        Create
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Modal */}
+        {showEditModal && selectedMaterial && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h2 className="text-xl font-bold mb-4">Edit Material</h2>
+                <form onSubmit={(e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.target)
+                  
+                  // Get values and convert empty strings to undefined (not null)
+                  const getValue = (name) => {
+                    const value = formData.get(name)
+                    return value === '' ? undefined : value
+                  }
+                  
+                  const data = {
+                    sku: getValue('sku'),
+                    name: getValue('name'),
+                    description: getValue('description'),
+                    category: getValue('category'),
+                    quantity: getValue('quantity') ? parseInt(getValue('quantity')) : 0,
+                    unit: getValue('unit') || 'pieces',
+                    unitPrice: getValue('unitPrice') ? parseFloat(getValue('unitPrice')) : 0,
+                    supplier: getValue('supplier'),
+                    location: getValue('location'),
+                    minStockLevel: getValue('minStockLevel') ? parseInt(getValue('minStockLevel')) : 10,
+                    status: getValue('status') || 'ACTIVE'
+                  }
+                  
+                  console.log('Edit form data to submit:', data)
+                  handleUpdate(selectedMaterial.id, data)
+                }}>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        SKU *
+                      </label>
+                      <input
+                        type="text"
+                        name="sku"
+                        required
+                        defaultValue={selectedMaterial.sku}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        required
+                        defaultValue={selectedMaterial.name}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Description
+                      </label>
+                      <input
+                        type="text"
+                        name="description"
+                        defaultValue={selectedMaterial.description || ''}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Category
+                      </label>
+                      <input
+                        type="text"
+                        name="category"
+                        defaultValue={selectedMaterial.category || ''}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Quantity
+                      </label>
+                      <input
+                        type="number"
+                        name="quantity"
+                        defaultValue={selectedMaterial.quantity || 0}
+                        min="0"
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Unit
+                      </label>
+                      <input
+                        type="text"
+                        name="unit"
+                        defaultValue={selectedMaterial.unit || 'pieces'}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Unit Price ($)
+                      </label>
+                      <input
+                        type="number"
+                        name="unitPrice"
+                        step="0.01"
+                        min="0"
+                        defaultValue={selectedMaterial.unitPrice || 0}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Status
+                      </label>
+                      <select
+                        name="status"
+                        defaultValue={selectedMaterial.status || 'ACTIVE'}
+                        className="w-full px-3 py-2 border rounded-lg"
+                      >
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                        <option value="ARCHIVED">Archived</option>
+                      </select>
+                    </div>
+                    <div className="flex space-x-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowEditModal(false)
+                          setSelectedMaterial(null)
+                        }}
+                        className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        Update
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

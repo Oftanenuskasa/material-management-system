@@ -1,0 +1,52 @@
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function DashboardPage() {
+  const router = useRouter()
+
+  useEffect(() => {
+    // Check if user is logged in via custom JWT
+    const userData = localStorage.getItem('user')
+    const token = localStorage.getItem('token')
+    
+    if (!token || !userData) {
+      console.log('No token or user data, redirecting to login')
+      router.push('/auth/login')
+      return
+    }
+    
+    try {
+      const user = JSON.parse(userData)
+      console.log('User role:', user.role)
+      
+      // Redirect based on role
+      if (user.role === 'ADMIN') {
+        console.log('Redirecting admin to /admin/materials')
+        router.push('/admin/materials')
+      } else if (user.role === 'MANAGER') {
+        console.log('Redirecting manager to /materials')
+        router.push('/materials')
+      } else if (user.role === 'STAFF') {
+        console.log('Redirecting staff to /materials')
+        router.push('/materials')
+      } else {
+        console.log('Redirecting user to /materials')
+        router.push('/materials')
+      }
+    } catch (error) {
+      console.error('Error parsing user data:', error)
+      router.push('/auth/login')
+    }
+  }, [router])
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Redirecting to your dashboard...</p>
+      </div>
+    </div>
+  )
+}

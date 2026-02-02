@@ -7,17 +7,30 @@ async function main() {
   console.log("Seeding demo users...");
 
   const users = [
-    { name: 'System Admin', email: 'admin@example.com', password: 'admin123', role: 'ADMIN' },
-    { name: 'manager', email: 'manager@example.com', password: 'manager123', role: 'MANAGER' },
-    { name: 'staff', email: 'staff@example.com', password: 'staff123', role: 'STAFF' },
-    { name: 'user', email: 'user@example.com', password: 'user123', role: 'USER' },
+    // System admin (the one you're trying to login with)
+    { name: 'System Admin', email: 'admin@system.com', password: 'admin123', role: 'ADMIN' },
+    
+    // Example users from your seed
+    { name: 'Demo Admin', email: 'admin@example.com', password: 'admin123', role: 'ADMIN' },
+    { name: 'Manager', email: 'manager@example.com', password: 'manager123', role: 'MANAGER' },
+    { name: 'Staff', email: 'staff@example.com', password: 'staff123', role: 'STAFF' },
+    { name: 'User', email: 'user@example.com', password: 'user123', role: 'USER' },
+    
+    // Additional roles if needed
+    { name: 'Department Manager', email: 'deptmanager@example.com', password: 'manager123', role: 'MANAGER' },
+    { name: 'Team Lead', email: 'teamlead@example.com', password: 'staff123', role: 'STAFF' },
   ];
 
   for (const u of users) {
     const hashedPassword = await bcrypt.hash(u.password, 10);
     await prisma.user.upsert({
       where: { email: u.email },
-      update: {},
+      update: {
+        name: u.name,
+        password: hashedPassword,
+        role: u.role,
+        isActive: true
+      },
       create: {
         name: u.name,
         email: u.email,
@@ -26,10 +39,21 @@ async function main() {
         isActive: true
       },
     });
-    console.log(`User created: ${u.email}`);
+    console.log(`User created/updated: ${u.email} (${u.role})`);
   }
 
-  console.log("Demo users created!");
+  console.log("\n✅ Demo users created!");
+  
+  // Show all users
+  const allUsers = await prisma.user.findMany({
+    orderBy: { email: 'asc' }
+  });
+  
+  console.log("\n📋 All users in database:");
+  console.log("=".repeat(60));
+  allUsers.forEach(user => {
+    console.log(`${user.email.padEnd(25)} - ${user.name.padEnd(20)} - ${user.role}`);
+  });
 }
 
 main()

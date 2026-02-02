@@ -1,26 +1,28 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = new PrismaClient()
 
 async function checkMaterials() {
-  try {
-    const materials = await prisma.material.findMany();
-    console.log('Total materials in DB:', materials.length);
-    console.log('\nFirst 5 materials:');
-    materials.slice(0, 5).forEach(m => {
-      console.log(`- ${m.name} (${m.sku}): ${m.quantity} ${m.unit}, Status: ${m.status}`);
-    });
-    
-    // Check users too
-    const users = await prisma.user.findMany();
-    console.log('\nTotal users in DB:', users.length);
-    users.slice(0, 3).forEach(u => {
-      console.log(`- ${u.name} (${u.email}): ${u.role}`);
-    });
-  } catch (error) {
-    console.error('Error:', error.message);
-  } finally {
-    await prisma.$disconnect();
-  }
+  console.log('Checking materials in database...\n')
+  
+  const materials = await prisma.material.findMany({
+    orderBy: { createdAt: 'desc' }
+  })
+  
+  console.log(`Found ${materials.length} materials in database:`)
+  console.log('='.repeat(80))
+  
+  materials.forEach((m, i) => {
+    console.log(`${i+1}. ${m.sku} - ${m.name}`)
+    console.log(`   Category: ${m.category || 'N/A'}`)
+    console.log(`   Quantity: ${m.quantity} ${m.unit}`)
+    console.log(`   Price: $${m.unitPrice || '0.00'}`)
+    console.log(`   Status: ${m.status}`)
+    console.log(`   ID: ${m.id}`)
+    console.log('')
+  })
+  
+  await prisma.$disconnect()
 }
 
-checkMaterials();
+checkMaterials().catch(console.error)

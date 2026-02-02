@@ -1,0 +1,27 @@
+                <form onSubmit={(e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.target)
+                  
+                  // Get values and convert empty strings to null
+                  const getValue = (name) => {
+                    const value = formData.get(name)
+                    return value === '' ? null : value
+                  }
+                  
+                  const data = {
+                    sku: getValue('sku'),
+                    name: getValue('name'),
+                    description: getValue('description'),
+                    category: getValue('category'),
+                    quantity: parseInt(getValue('quantity') || '0'),
+                    unit: getValue('unit') || 'pieces',
+                    unitPrice: parseFloat(getValue('unitPrice') || '0'),
+                    supplier: getValue('supplier'),
+                    location: getValue('location'),
+                    minStockLevel: parseInt(getValue('minStockLevel') || '10'),
+                    status: getValue('status') || 'ACTIVE'
+                  }
+                  
+                  console.log('Form data to submit:', data)
+                  handleCreate(data)
+                }}>

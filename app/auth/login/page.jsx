@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -10,204 +10,162 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
-
-  // Only 4 demo accounts
-  const demoAccounts = [
-    { role: 'ADMIN', email: 'admin@system.com', password: 'Admin123@', color: 'bg-purple-100 text-purple-800', icon: '👑' },
-    { role: 'MANAGER', email: 'manager@system.com', password: 'Manager123@', color: 'bg-yellow-100 text-yellow-800', icon: '📊' },
-    { role: 'STAFF', email: 'staff@system.com', password: 'Staff123@', color: 'bg-green-100 text-green-800', icon: '📦' },
-    { role: 'USER', email: 'user@system.com', password: 'User123@', color: 'bg-blue-100 text-blue-800', icon: '👤' },
-  ]
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setLoading(true)
     setError('')
+    setLoading(true)
 
     try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-        callbackUrl
+      // Use the correct API endpoint
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password
+        })
       })
 
-      if (result?.error) {
-        setError('Invalid email or password')
-      } else {
-        router.push(callbackUrl)
+      const data = await response.json()
+
+      if (response.ok) {
+        // Save token and user data
+        localStorage.setItem('token', data.token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        
+        console.log('✅ Login successful!')
+        
+        // Redirect based on role
+        if (data.user.role === 'ADMIN') {
+          router.push('/admin/materials')
+        } else {
+          router.push('/dashboard')
+        }
         router.refresh()
+      } else {
+        setError(data.error || 'Login failed. Please check your credentials.')
       }
-    } catch (error) {
+    } catch (err) {
       setError('An error occurred. Please try again.')
+      console.error('Login error:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const fillDemoAccount = (account) => {
-    setEmail(account.email)
-    setPassword(account.password)
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50 p-4">
-      <div className="max-w-4xl w-full flex flex-col lg:flex-row gap-8">
-        {/* Login Form */}
-        <div className="lg:w-1/2 p-8 bg-white rounded-2xl shadow-xl">
-          <div className="text-center mb-8">
-            <div className="inline-block p-3 bg-blue-100 rounded-full mb-4">
-              <span className="text-3xl">🏗️</span>
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900">Material Management</h1>
-            <p className="text-gray-600 mt-2">Sign in to access the system</p>
-          </div>
-          
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-              <div className="flex items-center">
-                <span className="mr-2">⚠️</span>
-                <span>{error}</span>
-              </div>
-            </div>
-          )}
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                required
-                disabled={loading}
-                placeholder="Enter your email"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                required
-                disabled={loading}
-                placeholder="Enter your password"
-              />
-            </div>
-            
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition duration-200 shadow-md hover:shadow-lg"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Signing in...
-                </span>
-              ) : (
-                'Sign In'
-              )}
-            </button>
-          </form>
-          
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-600 text-center">
-              Click on any demo account to auto-fill the form
-            </p>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="flex justify-center">
+          <div className="bg-blue-600 p-3 rounded-full">
+            <svg className="h-12 w-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
           </div>
         </div>
-        
-        {/* Demo Accounts Panel */}
-        <div className="lg:w-1/2">
-          <div className="p-8 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-xl text-white h-full">
-            <h2 className="text-2xl font-bold mb-2">Demo Accounts</h2>
-            <p className="text-gray-300 mb-6">
-              Test the system with different user roles
-            </p>
-            
-            <div className="space-y-4">
-              {demoAccounts.map((account, index) => (
-                <div
-                  key={index}
-                  onClick={() => fillDemoAccount(account)}
-                  className="p-4 bg-gray-800/30 hover:bg-gray-800/50 rounded-xl cursor-pointer transition border border-gray-700 hover:border-gray-600 group"
-                >
-                  <div className="flex items-center">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl mr-4 ${account.color.replace('text-', '')}`}>
-                      {account.icon}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h4 className="font-bold text-lg group-hover:text-white">{account.role}</h4>
-                          <p className="text-sm text-gray-400 group-hover:text-gray-300">{account.email}</p>
-                        </div>
-                        <button
-                          type="button"
-                          className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition"
-                        >
-                          Use This
-                        </button>
-                      </div>
-                      <div className="mt-3">
-                        <p className="text-xs text-gray-500">Password: 
-                          <code className="ml-2 bg-gray-900/50 px-2 py-1 rounded font-mono">
-                            {account.password}
-                          </code>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="mt-8">
-              <h3 className="font-bold mb-3 text-lg">Role Permissions</h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-purple-900/20 p-3 rounded-lg">
-                  <div className="flex items-center mb-1">
-                    <span className="mr-2">👑</span>
-                    <span className="font-medium">ADMIN</span>
-                  </div>
-                  <p className="text-purple-300 text-xs">Full system access</p>
-                </div>
-                <div className="bg-yellow-900/20 p-3 rounded-lg">
-                  <div className="flex items-center mb-1">
-                    <span className="mr-2">📊</span>
-                    <span className="font-medium">MANAGER</span>
-                  </div>
-                  <p className="text-yellow-300 text-xs">Approve requests & reports</p>
-                </div>
-                <div className="bg-green-900/20 p-3 rounded-lg">
-                  <div className="flex items-center mb-1">
-                    <span className="mr-2">📦</span>
-                    <span className="font-medium">STAFF</span>
-                  </div>
-                  <p className="text-green-300 text-xs">Manage inventory</p>
-                </div>
-                <div className="bg-blue-900/20 p-3 rounded-lg">
-                  <div className="flex items-center mb-1">
-                    <span className="mr-2">👤</span>
-                    <span className="font-medium">USER</span>
-                  </div>
-                  <p className="text-blue-300 text-xs">Browse & request materials</p>
-                </div>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Material Management System
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Sign in to access your account
+        </p>
+      </div>
+
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                {error}
               </div>
+            )}
+            
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email address
+              </label>
+              <div className="mt-1">
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter your email"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <div className="mt-1">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter your password"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                <Link href="/auth/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
+                  Forgot your password?
+                </Link>
+              </div>
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                  loading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Signing in...
+                  </>
+                ) : 'Sign in'}
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">
+                  Need help?
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Contact your system administrator for account access
+              </p>
             </div>
           </div>
         </div>

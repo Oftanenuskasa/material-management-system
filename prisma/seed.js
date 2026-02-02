@@ -1,140 +1,157 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { PrismaClient } = require('@prisma/client')
+const bcrypt = require('bcryptjs')
+
+const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Seeding database with CORRECT passwords...');
+  console.log('Seeding database...')
+  
+  try {
+    // Create users
+    console.log('Creating users...')
+    
+    const users = [
+      {
+        email: 'admin@material.com',
+        name: 'System Admin',
+        role: 'ADMIN',
+        password: await bcrypt.hash('admin123', 10)
+      },
+      {
+        email: 'manager@material.com',
+        name: 'Project Manager',
+        role: 'MANAGER',
+        password: await bcrypt.hash('manager123', 10)
+      },
+      {
+        email: 'worker@material.com',
+        name: 'John Worker',
+        role: 'WORKER',
+        password: await bcrypt.hash('worker123', 10)
+      }
+    ]
 
-  // Create users with CORRECT passwords from your demo
-  const users = [
-    {
-      email: 'admin@system.com',
-      name: 'Admin User',
-      password: 'Admin123@',  // Correct password from demo
-      role: 'ADMIN',
-      department: 'Administration',
-      phone: '123-456-7890',
-      isActive: true
-    },
-    {
-      email: 'manager@system.com',
-      name: 'Manager User',
-      password: 'Manager123@',  // Correct password from demo
-      role: 'MANAGER',
-      department: 'Management',
-      phone: '123-456-7891',
-      isActive: true
-    },
-    {
-      email: 'staff@system.com',
-      name: 'Staff User',
-      password: 'Staff123@',  // Correct password from demo
-      role: 'STAFF',
-      department: 'Operations',
-      phone: '123-456-7892',
-      isActive: true
-    },
-    {
-      email: 'user@system.com',
-      name: 'User User',
-      password: 'User123@',  // Correct password from demo
-      role: 'USER',
-      department: 'General',
-      phone: '123-456-7893',
-      isActive: true
+    for (const userData of users) {
+      const user = await prisma.user.upsert({
+        where: { email: userData.email },
+        update: {},
+        create: userData
+      })
+      console.log(`Created user: ${user.email} (${user.role})`)
     }
-  ];
 
-  console.log('Creating users with correct passwords...');
-  for (const userData of users) {
-    const user = await prisma.user.upsert({
-      where: { email: userData.email },
-      update: { password: userData.password }, // Update password if user exists
-      create: userData
-    });
-    console.log(`Created/updated user: ${user.name} (${user.email})`);
-    console.log(`  Password: ${userData.password}`);
-  }
+    // Get admin user for material creator
+    const adminUser = await prisma.user.findFirst({ 
+      where: { email: 'admin@material.com' } 
+    })
 
-  // Create materials
-  const materials = [
-    {
-      sku: 'HAM-001',
-      name: 'Hammer',
-      description: 'Standard claw hammer',
-      category: 'Tools',
-      quantity: 25,
-      unit: 'pieces',
-      unitPrice: 15.99,
-      supplier: 'ToolCo Inc',
-      location: 'Shelf A1',
-      minStockLevel: 5,
-      status: 'ACTIVE'
-    },
-    {
-      sku: 'SCR-001',
-      name: 'Screwdriver Set',
-      description: 'Set of 6 screwdrivers',
-      category: 'Tools',
-      quantity: 18,
-      unit: 'sets',
-      unitPrice: 29.99,
-      supplier: 'ToolCo Inc',
-      location: 'Shelf A2',
-      minStockLevel: 3,
-      status: 'ACTIVE'
-    },
-    {
-      sku: 'LAP-001',
-      name: 'Laptop',
-      description: 'Dell Latitude business laptop',
-      category: 'Electronics',
-      quantity: 8,
-      unit: 'units',
-      unitPrice: 1200.00,
-      supplier: 'Dell Technologies',
-      location: 'IT Storage',
-      minStockLevel: 2,
-      status: 'ACTIVE'
-    },
-    {
-      sku: 'MON-001',
-      name: 'Monitor',
-      description: '24-inch LED monitor',
-      category: 'Electronics',
-      quantity: 12,
-      unit: 'units',
-      unitPrice: 199.99,
-      supplier: 'Samsung',
-      location: 'IT Storage',
-      minStockLevel: 4,
-      status: 'ACTIVE'
+    // Create materials
+    console.log('Creating materials...')
+    
+    const materials = [
+      {
+        sku: 'STL-BM-001',
+        name: 'Steel Beams',
+        description: 'Structural steel beams for construction',
+        quantity: 100,
+        unit: 'pieces',
+        unitPrice: 250.50,
+        category: 'Structural',
+        supplier: 'SteelCo Inc.',
+        location: 'Warehouse A, Rack 3',
+        minStockLevel: 20
+      },
+      {
+        sku: 'CON-MX-005',
+        name: 'Concrete Mix',
+        description: 'Ready-mix concrete bags',
+        quantity: 500,
+        unit: 'bags',
+        unitPrice: 45.75,
+        category: 'Construction',
+        supplier: 'BuildMaterials Ltd.',
+        location: 'Warehouse B, Rack 1',
+        minStockLevel: 50
+      },
+      {
+        sku: 'ELC-WR-003',
+        name: 'Electrical Wires',
+        description: 'Copper electrical wires 2.5mm',
+        quantity: 1000,
+        unit: 'meters',
+        unitPrice: 3.25,
+        category: 'Electrical',
+        supplier: 'PowerSystems Co.',
+        location: 'Warehouse A, Rack 5',
+        minStockLevel: 100
+      }
+    ]
+
+    for (const materialData of materials) {
+      const material = await prisma.material.upsert({
+        where: { sku: materialData.sku },
+        update: {},
+        create: materialData
+      })
+      console.log(`Created material: ${material.name} (${material.sku})`)
     }
-  ];
 
-  console.log('\nCreating materials...');
-  for (const materialData of materials) {
-    const material = await prisma.material.upsert({
-      where: { sku: materialData.sku },
-      update: {},
-      create: materialData
-    });
-    console.log(`Created material: ${material.name} (${material.sku})`);
+    // Create some sample requests
+    console.log('Creating sample requests...')
+    
+    const workerUser = await prisma.user.findFirst({ 
+      where: { email: 'worker@material.com' } 
+    })
+    
+    const steelBeam = await prisma.material.findFirst({
+      where: { sku: 'STL-BM-001' }
+    })
+    
+    const concreteMix = await prisma.material.findFirst({
+      where: { sku: 'CON-MX-005' }
+    })
+    
+    if (workerUser && steelBeam) {
+      await prisma.request.create({
+        data: {
+          materialId: steelBeam.id,
+          userId: workerUser.id,
+          quantity: 10,
+          purpose: 'For construction project at site A',
+          urgency: 'HIGH',
+          status: 'PENDING'
+        }
+      })
+      console.log('Created sample request for Steel Beams')
+    }
+    
+    if (workerUser && concreteMix) {
+      await prisma.request.create({
+        data: {
+          materialId: concreteMix.id,
+          userId: workerUser.id,
+          quantity: 50,
+          purpose: 'Foundation work for building B',
+          urgency: 'MEDIUM',
+          status: 'APPROVED'
+        }
+      })
+      console.log('Created sample request for Concrete Mix')
+    }
+
+    console.log('Seeding completed successfully!')
+    
+  } catch (error) {
+    console.error('Error during seeding:', error)
+    throw error
   }
-
-  console.log('\n✅ Seeding completed with CORRECT passwords!');
-  console.log('\n=== LOGIN CREDENTIALS ===');
-  console.log('👑 ADMIN: admin@system.com / Admin123@');
-  console.log('📊 MANAGER: manager@system.com / Manager123@');
-  console.log('📦 STAFF: staff@system.com / Staff123@');
-  console.log('👤 USER: user@system.com / User123@');
-  console.log('\nNote: Passwords are case-sensitive!');
 }
 
 main()
-  .catch((error) => {
-    console.error('Error seeding database:', error);
-    process.exit(1);
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
   })
   .finally(async () => {
-    await prisma.$disconnect();
-  });
+    await prisma.$disconnect()
+  })

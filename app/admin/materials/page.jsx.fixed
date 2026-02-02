@@ -1,0 +1,43 @@
+// Find the existing handleCreate function and replace it with this:
+
+const handleCreate = async (materialData) => {
+  console.log('Creating material with data:', materialData);
+  
+  try {
+    const response = await fetch('/api/materials', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(materialData),
+    });
+
+    console.log('Response status:', response.status, response.statusText);
+    
+    // FIRST check if response is OK
+    if (!response.ok) {
+      // Try to get error message as JSON
+      let errorMessage;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+      } catch (jsonError) {
+        // If response is not JSON, get text instead
+        const text = await response.text();
+        errorMessage = `HTTP ${response.status}: ${text || response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    // ONLY parse JSON if response is OK
+    const result = await response.json();
+    console.log('Material created successfully:', result);
+    
+    return result;
+    
+  } catch (error) {
+    console.error('Error creating material:', error);
+    // Re-throw to handle in UI
+    throw new Error(`Failed to create material: ${error.message}`);
+  }
+};

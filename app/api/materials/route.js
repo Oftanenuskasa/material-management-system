@@ -1,65 +1,114 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server'
+import { PrismaClient } from '@prisma/client'
 
-export async function GET(request) {
+const prisma = new PrismaClient()
+
+// GET handler - NO AUTH AT ALL
+export async function GET() {
   try {
-    console.log('Materials API called');
+    console.log('GET /api/materials - No auth required')
     
-    // First, return test data to ensure the API works
-    const testMaterials = [
-      {
-        id: 'test-1',
-        sku: 'TEST-001',
-        name: 'Test Hammer',
-        description: 'A test hammer',
-        category: 'Tools',
-        quantity: 25,
-        unit: 'pieces',
-        unitPrice: 15.99,
-        supplier: 'Test Supplier',
-        location: 'Warehouse A',
-        minStockLevel: 5,
-        status: 'ACTIVE',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+    const materials = await prisma.material.findMany({
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        quantity: true,
+        unit: true,
+        category: true,
+        supplier: true,
+        description: true,
+        location: true,
+        unitPrice: true,
+        minStockLevel: true
       },
-      {
-        id: 'test-2',
-        name: 'Test Screwdriver',
-        sku: 'TEST-002',
-        description: 'A test screwdriver',
-        category: 'Tools',
-        quantity: 50,
-        unit: 'pieces',
-        unitPrice: 8.99,
-        supplier: 'Test Supplier',
-        location: 'Warehouse B',
-        minStockLevel: 10,
-        status: 'ACTIVE',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      orderBy: {
+        name: 'asc'
       }
-    ];
+    })
     
-    // Check query parameters
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
+    return NextResponse.json({
+      success: true,
+      data: materials
+    }, { status: 200 })
+  } catch (error) {
+    console.error('Error fetching materials:', error)
+    return NextResponse.json({
+      success: false,
+      message: 'Failed to fetch materials'
+    }, { status: 500 })
+  } finally {
+    await prisma.$disconnect()
+  }
+}
+
+// POST handler - NO AUTH AT ALL
+export async function POST(request) {
+  try {
+    console.log('POST /api/materials - No auth required')
     
-    let materials = testMaterials;
+    const body = await request.json()
+    console.log('Body:', body)
     
-    if (status) {
-      materials = materials.filter(m => m.status === status);
+    const { 
+      name, 
+      sku, 
+      description = '', 
+      quantity = 0, 
+      unit = 'pieces', 
+      unitPrice = 0, 
+      category = '', 
+      supplier = '', 
+      location = '', 
+      minStockLevel = 10 
+    } = body
+    
+    if (!name || !sku) {
+      return NextResponse.json({
+        success: false,
+        message: 'Name and SKU are required'
+      }, { status: 400 })
     }
     
-    return NextResponse.json(materials);
+    // Check if SKU exists
+    const existing = await prisma.material.findUnique({
+      where: { sku }
+    })
     
+    if (existing) {
+      return NextResponse.json({
+        success: false,
+        message: 'SKU already exists'
+      }, { status: 400 })
+    }
+    
+    const newMaterial = await prisma.material.create({
+      data: {
+        name,
+        sku,
+        description,
+        quantity: parseInt(quantity) || 0,
+        unit,
+        unitPrice: parseFloat(unitPrice) || 0,
+        category,
+        supplier,
+        location,
+        minStockLevel: parseInt(minStockLevel) || 10
+      }
+    })
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Material created',
+      data: newMaterial
+    }, { status: 201 })
   } catch (error) {
-    console.error('Error in materials API:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch materials', 
-        details: error.message
-      },
-      { status: 500 }
-    );
+    console.error('Error creating material:', error)
+    return NextResponse.json({
+      success: false,
+      message: 'Error: ' + error.message
+    }, { status: 500 })
+  } finally {
+    await prisma.$disconnect()
   }
 }

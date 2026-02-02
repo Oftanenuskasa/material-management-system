@@ -16,10 +16,14 @@ export const authOptions = {
       },
       async authorize(credentials) {
         try {
-          console.log("🔐 Authorization attempt for:", credentials?.email);
+          console.log("=".repeat(60));
+          console.log("🔐 AUTHORIZATION ATTEMPT");
+          console.log("=".repeat(60));
+          console.log("Email:", credentials?.email);
+          console.log("Password provided:", credentials?.password ? "[HIDDEN]" : "MISSING");
           
           if (!credentials?.email || !credentials?.password) {
-            console.log("❌ Missing email or password");
+            console.log("❌ ERROR: Missing email or password");
             return null;
           }
 
@@ -28,31 +32,54 @@ export const authOptions = {
           });
 
           if (!user) {
-            console.log(`❌ User not found: ${credentials.email}`);
+            console.log(`❌ ERROR: User not found: ${credentials.email}`);
             return null;
           }
 
-          console.log(`✅ User found: ${user.email}, Active: ${user.isActive}`);
-          
+          console.log(`✅ User found: ${user.email}`);
+          console.log(`   Name: ${user.name}`);
+          console.log(`   Role: ${user.role}`);
+          console.log(`   Active: ${user.isActive}`);
+          console.log(`   Password hash: ${user.password.substring(0, 30)}...`);
+          console.log(`   Password hash length: ${user.password.length}`);
+
           if (!user.isActive) {
-            console.log(`❌ User is not active: ${credentials.email}`);
+            console.log(`❌ ERROR: User is not active`);
             return null;
           }
 
-          console.log(`🔑 Verifying password for ${user.email}...`);
+          console.log(`\n🔑 PASSWORD VERIFICATION`);
+          console.log(`Input password length: ${credentials.password.length}`);
+          console.log(`Stored hash length: ${user.password.length}`);
+          
+          // CRITICAL: Add timeout and detailed logging
+          const passwordCheckStart = Date.now();
           const isValidPassword = await bcrypt.compare(
             credentials.password,
             user.password
           );
-
-          console.log(`   Password valid: ${isValidPassword}`);
+          const passwordCheckTime = Date.now() - passwordCheckStart;
           
+          console.log(`Password check took: ${passwordCheckTime}ms`);
+          console.log(`Password valid: ${isValidPassword}`);
+          
+          // Additional debug: Try to hash the input and compare
           if (!isValidPassword) {
-            console.log(`❌ Invalid password for ${credentials.email}`);
+            console.log(`\n⚠️ DEBUG: Creating new hash for comparison`);
+            const testHash = await bcrypt.hash(credentials.password, 10);
+            console.log(`Test hash: ${testHash.substring(0, 30)}...`);
+            console.log(`Stored hash: ${user.password.substring(0, 30)}...`);
+            console.log(`Hashes match? ${testHash === user.password}`);
+          }
+
+          if (!isValidPassword) {
+            console.log(`❌ ERROR: Invalid password`);
             return null;
           }
 
-          console.log(`✅ Authentication successful for ${user.email}`);
+          console.log(`\n✅ AUTHENTICATION SUCCESSFUL!`);
+          console.log(`User: ${user.email} (${user.role})`);
+          console.log("=".repeat(60) + "\n");
           
           return {
             id: user.id,
@@ -61,7 +88,8 @@ export const authOptions = {
             role: user.role || "USER"
           };
         } catch (error) {
-          console.error("Authorize error:", error);
+          console.error("❌ AUTHORIZE ERROR:", error.message);
+          console.error("Stack:", error.stack);
           return null;
         }
       }
@@ -98,7 +126,7 @@ export const authOptions = {
     maxAge: 24 * 60 * 60
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: false
+  debug: true  // Enable debug mode
 };
 
 // Create the handler

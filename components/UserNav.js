@@ -5,12 +5,17 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 export default function UserNav() {
-  const { user, logout, hasRole } = useAuth()
+  const { user, logout } = useAuth()
   const router = useRouter()
 
   const handleLogout = () => {
     logout()
     router.push('/')
+  }
+
+  // Helper function to check user role
+  const hasRole = (role) => {
+    return user?.role === role
   }
 
   if (!user) {
@@ -37,7 +42,7 @@ export default function UserNav() {
     switch(user.role) {
       case 'ADMIN': return 'bg-purple-100 text-purple-800'
       case 'MANAGER': return 'bg-yellow-100 text-yellow-800'
-      case 'STAFF': return 'bg-green-100 text-green-800'
+      case 'WORKER': return 'bg-green-100 text-green-800'
       default: return 'bg-blue-100 text-blue-800'
     }
   }
@@ -52,30 +57,66 @@ export default function UserNav() {
           </span>
         </div>
         
-        {/* Role-based navigation links */}
-        {hasRole('MANAGER') && (
+        {/* All Users can see Materials and Requests */}
+        <Link
+          href="/materials"
+          className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+        >
+          Materials
+        </Link>
+        
+        <Link
+          href="/requests"
+          className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+        >
+          Requests
+        </Link>
+        
+        {/* Only Managers and Admins can see Users */}
+        {(user.role === 'MANAGER' || user.role === 'ADMIN') && (
+          <Link
+            href="/users"
+            className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+          >
+            Users
+          </Link>
+        )}
+        
+        {/* Only Managers and Admins can see Reports */}
+        {(user.role === 'MANAGER' || user.role === 'ADMIN') && (
+          <Link
+            href="/reports"
+            className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+          >
+            Reports
+          </Link>
+        )}
+        
+        {/* Only Admins can see Settings and Admin Materials */}
+        {user.role === 'ADMIN' && (
           <>
             <Link
-              href="/users"
+              href="/admin/materials"
               className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
             >
-              Users
+              Admin Materials
             </Link>
             <Link
-              href="/reports"
+              href="/settings"
               className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
             >
-              Reports
+              Settings
             </Link>
           </>
         )}
         
-        {hasRole('ADMIN') && (
+        {/* Managers can see Manager Materials */}
+        {user.role === 'MANAGER' && (
           <Link
-            href="/settings"
+            href="/manager/materials"
             className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
           >
-            Settings
+            Manage Materials
           </Link>
         )}
       </div>
@@ -91,19 +132,40 @@ export default function UserNav() {
           <div className="px-4 py-2 border-b">
             <p className="text-sm font-medium">{user.name}</p>
             <p className="text-xs text-gray-500">{user.email}</p>
+            <span className={`text-xs px-2 py-1 rounded-full ${getRoleColor()}`}>
+              {user.role}
+            </span>
           </div>
+          
+          <Link
+            href="/dashboard"
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          >
+            Dashboard
+          </Link>
+          
           <Link
             href="/profile"
             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
           >
             Your Profile
           </Link>
-          <button
-            onClick={handleLogout}
-            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+          
+          <Link
+            href="/requests/new"
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
           >
-            Sign out
-          </button>
+            New Request
+          </Link>
+          
+          <div className="border-t mt-1 pt-1">
+            <button
+              onClick={handleLogout}
+              className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </div>
     </div>

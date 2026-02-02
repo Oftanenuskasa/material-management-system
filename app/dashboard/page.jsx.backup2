@@ -1,0 +1,212 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function DashboardPage() {
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+
+  useEffect(() => {
+    // Get user from localStorage
+    const userData = localStorage.getItem('user')
+    const token = localStorage.getItem('token')
+    
+    if (!token || !userData) {
+      router.push('/auth/login')
+      return
+    }
+    
+    try {
+      const parsedUser = JSON.parse(userData)
+      setUser(parsedUser)
+    } catch (error) {
+      console.error('Failed to parse user data:', error)
+      router.push('/auth/login')
+    } finally {
+      setLoading(false)
+    }
+  }, [router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {user.role === 'ADMIN' ? '👑 Admin Dashboard' : '📊 User Dashboard'}
+            </h1>
+            <p className="text-gray-600">Welcome back, {user.name} ({user.role})</p>
+          </div>
+          <div className="flex space-x-4">
+            <button
+              onClick={() => router.push('/materials')}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
+            >
+              <span className="mr-2">📦</span> View Materials
+            </button>
+            {user.role === 'ADMIN' && (
+              <button
+                onClick={() => router.push('/admin/materials')}
+                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+              >
+                <span className="mr-2">⚙️</span> Manage Materials
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-blue-100 rounded-lg mr-4">
+                <span className="text-2xl">📦</span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Materials</p>
+                <p className="text-2xl font-bold">24</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-green-100 rounded-lg mr-4">
+                <span className="text-2xl">✅</span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">In Stock</p>
+                <p className="text-2xl font-bold">18</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-yellow-100 rounded-lg mr-4">
+                <span className="text-2xl">⚠️</span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Low Stock</p>
+                <p className="text-2xl font-bold">3</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-red-100 rounded-lg mr-4">
+                <span className="text-2xl">❌</span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Out of Stock</p>
+                <p className="text-2xl font-bold">3</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <button
+              onClick={() => router.push('/materials')}
+              className="p-6 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-left"
+            >
+              <div className="text-3xl mb-4">🔍</div>
+              <h3 className="font-semibold text-gray-900 mb-2">Browse Materials</h3>
+              <p className="text-gray-600 text-sm">View all available materials in inventory</p>
+            </button>
+            
+            {user.role === 'ADMIN' ? (
+              <button
+                onClick={() => router.push('/admin/materials')}
+                className="p-6 border-2 border-gray-200 rounded-lg hover:border-green-500 hover:bg-green-50 text-left"
+              >
+                <div className="text-3xl mb-4">⚙️</div>
+                <h3 className="font-semibold text-gray-900 mb-2">Manage Materials</h3>
+                <p className="text-gray-600 text-sm">Add, edit, or delete materials in the system</p>
+              </button>
+            ) : (
+              <button
+                onClick={() => alert('Request feature coming soon!')}
+                className="p-6 border-2 border-gray-200 rounded-lg hover:border-green-500 hover:bg-green-50 text-left"
+              >
+                <div className="text-3xl mb-4">📝</div>
+                <h3 className="font-semibold text-gray-900 mb-2">Request Materials</h3>
+                <p className="text-gray-600 text-sm">Submit requests for materials you need</p>
+              </button>
+            )}
+            
+            <button
+              onClick={() => alert('Reports coming soon!')}
+              className="p-6 border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 text-left"
+            >
+              <div className="text-3xl mb-4">📊</div>
+              <h3 className="font-semibold text-gray-900 mb-2">View Reports</h3>
+              <p className="text-gray-600 text-sm">Check inventory status and usage reports</p>
+            </button>
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Recent Activity</h2>
+          <div className="space-y-4">
+            <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+              <div className="p-2 bg-blue-100 rounded mr-4">
+                <span>📦</span>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">Welcome to the system</p>
+                <p className="text-sm text-gray-600">You've successfully logged in</p>
+              </div>
+              <span className="text-sm text-gray-500">Just now</span>
+            </div>
+            
+            <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+              <div className="p-2 bg-green-100 rounded mr-4">
+                <span>✅</span>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">System updated</p>
+                <p className="text-sm text-gray-600">Latest security patches applied</p>
+              </div>
+              <span className="text-sm text-gray-500">Yesterday</span>
+            </div>
+            
+            <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+              <div className="p-2 bg-yellow-100 rounded mr-4">
+                <span>⚠️</span>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">Low stock alert</p>
+                <p className="text-sm text-gray-600">3 items need restocking</p>
+              </div>
+              <span className="text-sm text-gray-500">2 days ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
