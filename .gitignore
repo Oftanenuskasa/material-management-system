@@ -1,6 +1,11 @@
 node_modules
 .next
 .env
+*.backup
+*.fixed
+temp-*
+debug-*
+*.log
 .env.local
 .env.production
 .env.development
